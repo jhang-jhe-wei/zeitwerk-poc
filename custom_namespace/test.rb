@@ -1,6 +1,6 @@
 require_relative 'poc_loader'
 require 'byebug'
-VERSION = "v1"
+VERSION = "v2"
 module Car ;end
 
 loader = PocLoader.new
@@ -9,6 +9,7 @@ loader.enable_reloading
 loader.setup
 
 while true
+  loader.reload
   Car::Wheel.hi
   sleep 1
 end

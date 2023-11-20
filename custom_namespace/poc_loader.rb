@@ -46,9 +46,9 @@ class PocLoader
   private
 
   def remove_top_level_constants(dir)
-    Dir.glob("#{dir}/**").each do |ns|
+    Dir.glob("#{dir}/*").each do |ns|
       namespace_name = ns.gsub(/#{dir}\//, '')
-      Object.send(:remove_const, namespace_name.camelize.remove_rb_extension)
+      root_namespace.send(:remove_const, namespace_name.camelize.remove_rb_extension)
     end
   end
 
