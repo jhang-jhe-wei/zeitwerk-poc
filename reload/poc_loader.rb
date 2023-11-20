@@ -1,19 +1,4 @@
-# monkey patch String
-class String
-  def constantize
-    Object.const_get(self)
-  end
-
-  def camelize(uppercase_first_letter = true)
-    string = self
-    if uppercase_first_letter
-      string = string.sub(/^[a-z\d]*/) { |match| match.capitalize }
-    else
-      string = string.sub(/^(?:(?=\b|[A-Z_])|\w)/) { |match| match.downcase }
-    end
-    string.gsub(/(?:_|(\/))([a-z\d]*)/) { "#{$1}#{$2.capitalize}" }.gsub("/", "::")
-  end
-end
+require_relative './monkey_patches'
 
 class PocLoader
   attr_reader :autoload_paths
@@ -32,10 +17,10 @@ class PocLoader
   # Dir.glob("lib/**/*.rb", base: 'lib')
   def reload
     autoload_paths.each do |dir|
-      rbfiles = File.join("**", "*.rb")
-      Dir.glob(rbfiles, base: 'lib').each do |f|
-        file = File.basename(f, ".*")
-        Object.send(:remove_const, file.camelize)
+      list_files(dir) do |abs_path, relat_path|
+        cname = relat_path.remove_rb_extension.camelize
+        $LOADED_FEATURES.delete(abs_path)
+        Object.send(:remove_const, cname)
       end
     end
     setup
@@ -43,10 +28,20 @@ class PocLoader
 
   def setup
     autoload_paths.each do |dir|
-      Dir.glob("#{dir}/**/*.rb").each do |file|
-        byebug
-        require_relative file
+      list_files(dir) do |abs_path, relat_path|
+        cname = relat_path.remove_rb_extension.camelize
+        Object.autoload cname, abs_path
       end
+    end
+  end
+
+  private
+
+  def list_files(directory)
+    Dir.glob(File.join(directory, '**', '*.rb')).each do |file|
+      abs_path = File.absolute_path(file)
+      relat_path = file.gsub(/#{directory}\//, '')
+      yield(abs_path, relat_path) if block_given?
     end
   end
 end
