@@ -7,37 +7,21 @@ class PocLoader
     @autoload_paths = []
   end
 
+  # autoloadPaths store hash arry
+  # every element is a hash with key: dir, namespace
   def push_dir(dir, namespace: Object)
-    @autoload_paths << dir
-    @root_namespace = namespace
+    autoload_paths << { dir: dir, namespace: namespace }
   end
 
-  # don't need to implement this now
-  def enable_reloading; end
-
   def reload
-    autoload_paths.each do |dir|
-      list_files(dir) do |abs_path, relat_path|
-        cname = relat_path.remove_rb_extension.camelize
-        $LOADED_FEATURES.delete(abs_path)
-      end
-
-      remove_top_level_constants(dir)
-    end
+    unload
     setup
   end
 
   def setup
-    autoload_paths.each do |dir|
+    autoload_paths.each do |dir:, namespace:|
       list_files(dir) do |abs_path, relat_path|
-        unlazy_load_for_implicit_problem!(relat_path)
-        
-        base_name = File.basename(relat_path)
-        namespace_name = File.dirname(relat_path).camelize
-        namespace_name = root_namespace.to_s if namespace_name == '.'
-        namespace = namespace_name.constantize
-
-        cname = base_name.remove_rb_extension.camelize
+        cname = relat_path.remove_rb_extension.camelize
         namespace.autoload cname, abs_path
       end
     end
@@ -45,28 +29,25 @@ class PocLoader
 
   private
 
-  def remove_top_level_constants(dir)
-    Dir.glob("#{dir}/*").each do |ns|
-      namespace_name = ns.gsub(/#{dir}\//, '')
-      root_namespace.send(:remove_const, namespace_name.camelize.remove_rb_extension)
-    end
-  end
-
-  # for implicit problem
-  def unlazy_load_for_implicit_problem!(relat_path)
-    namespaces = relat_path.split('/')[0..-2]
-    namespaces.each do |ns|
-      pre_namespace ||= root_namespace
-      cname = ns.camelize
-
-      if pre_namespace.const_defined? cname
-        pre_namespace = pre_namespace.const_get cname
-      else
-        pre_namespace = pre_namespace.const_set cname, Module.new
+  def unload
+    autoload_paths.each do |dir:, namespace:|
+      list_files(dir) do |abs_path, relat_path|
+        cname = relat_path.remove_rb_extension.camelize
+        $LOADED_FEATURES.delete(abs_path)
       end
+
+      remove_shallow_level_constants(dir, namespace)
     end
   end
 
+  def remove_shallow_level_constants(dir, namespace)
+    Dir.glob("#{dir}/*").each do |relat_path|
+      base_path = relat_path.gsub(/#{dir}\//, '')
+      cname = base_path.remove_rb_extension.camelize
+      namespace.send(:remove_const, cname)
+    end
+  end
+ 
   def list_files(directory)
     Dir.glob(File.join(directory, '**', '*.rb')).each do |file|
       abs_path = File.absolute_path(file)
