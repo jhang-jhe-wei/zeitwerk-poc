@@ -1,4 +1,5 @@
 require_relative './monkey_patches'
+require 'byebug'
 require 'set'
 
 class PocLoader
@@ -11,7 +12,7 @@ class PocLoader
   # autoloadPaths store hash arry
   # every element is a hash with key: dir, namespace
   def push_dir(dir, root_namespace: Object)
-    autoload_paths << { dir: dir, root_namespace: namespace }
+    autoload_paths << { dir: dir, root_namespace: root_namespace }
   end
 
   def reload
@@ -71,6 +72,7 @@ class PocLoader
   def list_files(directory)
     children_files = Dir.glob(File.join(directory, '**', '*.rb'))
     children_files.sort!
+    byebug
     children_files.each do |file|
       abs_path = File.absolute_path(file)
       relat_path = file.gsub(/#{directory}\//, '')
