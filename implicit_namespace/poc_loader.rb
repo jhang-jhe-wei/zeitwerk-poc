@@ -1,5 +1,4 @@
 require_relative './monkey_patches'
-require 'byebug'
 require 'set'
 
 class PocLoader
@@ -72,7 +71,6 @@ class PocLoader
   def list_files(directory)
     children_files = Dir.glob(File.join(directory, '**', '*.rb'))
     children_files.sort!
-    byebug
     children_files.each do |file|
       abs_path = File.absolute_path(file)
       relat_path = file.gsub(/#{directory}\//, '')
