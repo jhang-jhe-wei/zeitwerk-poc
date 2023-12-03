@@ -9,8 +9,8 @@ class PocLoader
 
   # autoloadPaths store hash arry
   # every element is a hash with key: dir, namespace
-  def push_dir(dir, namespace: Object)
-    autoload_paths << { dir: dir, namespace: namespace }
+  def push_dir(dir, root_namespace: Object)
+    autoload_paths << { dir: dir, root_namespace: root_namespace }
   end
 
   def reload
@@ -19,10 +19,10 @@ class PocLoader
   end
 
   def setup
-    autoload_paths.each do |dir:, namespace:|
+    autoload_paths.each do |dir:, root_namespace:|
       list_files(dir) do |abs_path, relat_path|
         cname = relat_path.remove_rb_extension.camelize
-        namespace.autoload cname, abs_path
+        root_namespace.autoload cname, abs_path
       end
     end
   end
@@ -30,13 +30,13 @@ class PocLoader
   private
 
   def unload
-    autoload_paths.each do |dir:, namespace:|
+    autoload_paths.each do |dir:, root_namespace:|
       list_files(dir) do |abs_path, relat_path|
         cname = relat_path.remove_rb_extension.camelize
         $LOADED_FEATURES.delete(abs_path)
       end
 
-      remove_shallow_level_constants(dir, namespace)
+      remove_shallow_level_constants(dir, root_namespace)
     end
   end
 

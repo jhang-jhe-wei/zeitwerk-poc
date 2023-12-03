@@ -10,7 +10,7 @@ class PocLoader
 
   # autoloadPaths store hash arry
   # every element is a hash with key: dir, namespace
-  def push_dir(dir, namespace: Object)
+  def push_dir(dir, root_namespace: Object)
     autoload_paths << { dir: dir, root_namespace: namespace }
   end
 

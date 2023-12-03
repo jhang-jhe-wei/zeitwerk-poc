@@ -6,7 +6,7 @@ VERSION = "v2"
 module Car ;end
 
 loader = PocLoader.new
-loader.push_dir("lib/car/parts/#{VERSION}", namespace: Car)
+loader.push_dir("lib/car/parts/#{VERSION}", root_namespace: Car)
 loader.setup
 
 while true
