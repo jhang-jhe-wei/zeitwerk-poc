@@ -1,3 +1,6 @@
+chroot = File.expand_path(File.dirname(__FILE__))
+Dir.chdir(chroot)
+
 require_relative 'poc_loader'
 
 loader = PocLoader.new
