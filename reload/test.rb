@@ -5,7 +5,6 @@ require_relative 'poc_loader'
 
 loader = PocLoader.new
 loader.push_dir("lib")
-loader.enable_reloading
 loader.setup
 
 while true
