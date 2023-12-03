@@ -1,73 +1,77 @@
 require_relative './monkey_patches'
+require 'set'
 
 class PocLoader
-  attr_reader :autoload_paths
+  attr_reader :autoload_paths, :root_namespace
 
   def initialize
     @autoload_paths = []
   end
 
-  def push_dir(dir)
-    @autoload_paths << dir
+  # autoloadPaths store hash arry
+  # every element is a hash with key: dir, namespace
+  def push_dir(dir, namespace: Object)
+    autoload_paths << { dir: dir, root_namespace: namespace }
   end
 
-  # don't need to implement this now
-  def enable_reloading; end
-
   def reload
-    autoload_paths.each do |dir|
-      list_files(dir) do |abs_path, relat_path|
-        cname = relat_path.remove_rb_extension.camelize
-        $LOADED_FEATURES.delete(abs_path)
-      end
-
-      remove_top_level_constants(dir)
-    end
+    unload
     setup
   end
 
   def setup
-    autoload_paths.each do |dir|
+    autoload_paths.each do |dir:, root_namespace:|
       list_files(dir) do |abs_path, relat_path|
-        unlazy_load_for_implicit_problem!(relat_path)
-        
-        base_name = File.basename(relat_path)
-        namespace_name = File.dirname(relat_path).camelize
-        namespace_name = 'Object' if namespace_name == '.'
-        namespace = namespace_name.constantize
-
-        cname = base_name.remove_rb_extension.camelize
-        namespace.autoload cname, abs_path
+        cname = relat_path.remove_rb_extension.camelize
+        namespace = define_namespace(cname, root_namespace)
+        cname_without_namespace = cname.split('::').last
+        namespace.autoload cname_without_namespace, abs_path
       end
     end
   end
 
   private
 
-  def remove_top_level_constants(dir)
-    Dir.glob("#{dir}/**").each do |ns|
-      namespace_name = ns.gsub(/#{dir}\//, '')
-      Object.send(:remove_const, namespace_name.camelize.remove_rb_extension)
-    end
-  end
-
-  # for implicit problem
-  def unlazy_load_for_implicit_problem!(relat_path)
-    namespaces = relat_path.split('/')[0..-2]
-    namespaces.each do |ns|
-      root_namespace ||= Object
-      cname = ns.camelize
-
-      if root_namespace.const_defined? cname
-        root_namespace = root_namespace.const_get cname
-      else
-        root_namespace = root_namespace.const_set cname, Module.new
+  def define_namespace(cname, root_namespace)
+    namespaces = cname.split('::')
+    # remove last element
+    namespaces.pop
+    namespaces.each do |namespace|
+      unless root_namespace.const_defined?(namespace)
+        root_namespace.const_set(namespace, Module.new)
       end
+      root_namespace = root_namespace.const_get(namespace)
+    end
+    root_namespace
+  end
+
+  def unload
+    autoload_paths.each do |dir:, root_namespace:|
+      list_files(dir) do |abs_path, relat_path|
+        cname = relat_path.remove_rb_extension.camelize
+        $LOADED_FEATURES.delete(abs_path)
+      end
+
+      remove_shallow_level_constants(dir, root_namespace)
     end
   end
 
+  def remove_shallow_level_constants(dir, namespace)
+    set = Set.new
+    Dir.glob("#{dir}/*").each do |relat_path|
+      base_path = relat_path.gsub(/#{dir}\//, '')
+      cname = base_path.remove_rb_extension.camelize
+      set << cname.split('::').first
+    end
+    set.each do |cname|
+      namespace.send(:remove_const, cname)
+    end
+  end
+ 
   def list_files(directory)
-    Dir.glob(File.join(directory, '**', '*.rb')).each do |file|
+    children_files = Dir.glob(File.join(directory, '**', '*.rb'))
+    children_files.sort!
+    children_files.each do |file|
       abs_path = File.absolute_path(file)
       relat_path = file.gsub(/#{directory}\//, '')
       yield(abs_path, relat_path) if block_given?
